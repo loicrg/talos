@@ -92,17 +92,13 @@ pub async fn apply_scale(
                         .and_then(|installation| installation.service.as_ref())
                         .is_some()
                     {
-                        manage_runner(
-                            host,
-                            &runner,
-                            RunnerAction::ServiceRemove,
-                            false,
-                            false,
-                        )
-                        .await
-                        .with_context(|| {
-                            format!("remove systemd service for runner '{name}' before scale-down")
-                        })?;
+                        manage_runner(host, &runner, RunnerAction::ServiceRemove, false, false)
+                            .await
+                            .with_context(|| {
+                                format!(
+                                    "remove systemd service for runner '{name}' before scale-down"
+                                )
+                            })?;
 
                         let refreshed = application
                             .observe(&host.name, Some(repository), true)
@@ -148,7 +144,10 @@ pub async fn apply_scale(
 }
 
 fn find_unique_runner<'a>(observation: &'a HostObservation, name: &str) -> Result<&'a Runner> {
-    let mut matches = observation.runners.iter().filter(|runner| runner.name == name);
+    let mut matches = observation
+        .runners
+        .iter()
+        .filter(|runner| runner.name == name);
     let runner = matches
         .next()
         .with_context(|| format!("runner '{name}' disappeared during scale-down"))?;

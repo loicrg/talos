@@ -291,9 +291,7 @@ pub async fn run(cli: Cli) -> Result<()> {
             };
             let mut observations = Vec::new();
             for (name, result) in app.observe_many(names, repo.clone(), false).await {
-                observations.push(
-                    result.with_context(|| format!("observe host '{name}'"))?
-                );
+                observations.push(result.with_context(|| format!("observe host '{name}'"))?);
             }
             let runners: Vec<_> = observations
                 .iter()
@@ -546,9 +544,7 @@ async fn runner_command(app: &Application, command: RunnerCommand) -> Result<()>
                     "choose --unregister and/or --delete-files; no action is implied by `runner remove`"
                 );
             }
-            let observation = app
-                .observe(&host, repo.as_ref(), repo.is_some())
-                .await?;
+            let observation = app.observe(&host, repo.as_ref(), repo.is_some()).await?;
             let runner = find_runner(&observation, &name)?;
             let mut effects = Vec::new();
             if unregister {

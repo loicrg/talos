@@ -43,15 +43,7 @@ pub async fn run(application: Application) -> Result<()> {
     loop {
         terminal
             .terminal
-            .draw(|frame| {
-                draw(
-                    frame,
-                    &observations,
-                    selected_host,
-                    selected_runner,
-                    view,
-                )
-            })?;
+            .draw(|frame| draw(frame, &observations, selected_host, selected_runner, view))?;
         if !event::poll(Duration::from_millis(250))? {
             continue;
         }
@@ -108,11 +100,7 @@ pub async fn run(application: Application) -> Result<()> {
             }
             KeyCode::Char('r') => {
                 observations = refresh(&application).await;
-                normalize_selection(
-                    &observations,
-                    &mut selected_host,
-                    &mut selected_runner,
-                );
+                normalize_selection(&observations, &mut selected_host, &mut selected_runner);
             }
             KeyCode::Char('d') => view = View::Doctor,
             KeyCode::Char('l') if view == View::Detail => {
@@ -410,16 +398,7 @@ async fn remove_selected(
 
     let result = match GitHubClient::from_gh_cli().await {
         Ok(github) => {
-            remove_runner(
-                &host,
-                &runner,
-                &github,
-                true,
-                delete_files,
-                false,
-                adopt,
-            )
-            .await
+            remove_runner(&host, &runner, &github, true, delete_files, false, adopt).await
         }
         Err(error) => Err(error),
     };
@@ -825,37 +804,44 @@ fn draw_detail(
         return;
     }
 
-    let rows = observation.runners.iter().enumerate().map(|(index, runner)| {
-        let repository = runner
-            .repository
-            .as_ref()
-            .map_or("?".to_owned(), ToString::to_string);
-        let github = runner.github.as_ref().map_or("unknown".to_owned(), |state| {
-            format!(
-                "{} / {}",
-                state.status,
-                match state.busy {
-                    Some(true) => "busy",
-                    Some(false) => "idle",
-                    None => "?",
-                }
-            )
+    let rows = observation
+        .runners
+        .iter()
+        .enumerate()
+        .map(|(index, runner)| {
+            let repository = runner
+                .repository
+                .as_ref()
+                .map_or("?".to_owned(), ToString::to_string);
+            let github = runner
+                .github
+                .as_ref()
+                .map_or("unknown".to_owned(), |state| {
+                    format!(
+                        "{} / {}",
+                        state.status,
+                        match state.busy {
+                            Some(true) => "busy",
+                            Some(false) => "idle",
+                            None => "?",
+                        }
+                    )
+                });
+            let service = runner
+                .installation
+                .as_ref()
+                .and_then(|install| install.service.as_ref())
+                .and_then(|service| service.active.as_deref())
+                .unwrap_or("missing");
+            Row::new(vec![
+                Cell::from(if index == selected_runner { "›" } else { " " }),
+                Cell::from(runner.name.clone()),
+                Cell::from(repository),
+                Cell::from(github),
+                Cell::from(service.to_owned()),
+                Cell::from(runner.health.to_string()),
+            ])
         });
-        let service = runner
-            .installation
-            .as_ref()
-            .and_then(|install| install.service.as_ref())
-            .and_then(|service| service.active.as_deref())
-            .unwrap_or("missing");
-        Row::new(vec![
-            Cell::from(if index == selected_runner { "›" } else { " " }),
-            Cell::from(runner.name.clone()),
-            Cell::from(repository),
-            Cell::from(github),
-            Cell::from(service.to_owned()),
-            Cell::from(runner.health.to_string()),
-        ])
-    });
     let table = Table::new(
         rows,
         [
